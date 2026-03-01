@@ -1,34 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards } from '@nestjs/common';
 import { FamiliesService } from './families.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
-import { UpdateFamilyDto } from './dto/update-family.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('العوائل (Families)')
+@ApiBearerAuth() // يخبر Swagger أن كل مسارات العوائل تحتاج إلى توكن
+@UseGuards(JwtAuthGuard) // حماية جميع المسارات في هذا الكنترولر دفعة واحدة
 @Controller('families')
 export class FamiliesController {
   constructor(private readonly familiesService: FamiliesService) {}
 
   @Post()
-  create(@Body() createFamilyDto: CreateFamilyDto) {
-    return this.familiesService.create(createFamilyDto);
+  @ApiOperation({ summary: 'إنشاء عائلة جديدة' })
+  create(@Req() req, @Body() createFamilyDto: CreateFamilyDto) {
+    // نأخذ userId من التوكن الذي تم التحقق منه
+    const userId = req.user.userId;
+    return this.familiesService.create(userId, createFamilyDto);
   }
 
   @Get()
-  findAll() {
-    return this.familiesService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.familiesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFamilyDto: UpdateFamilyDto) {
-    return this.familiesService.update(+id, updateFamilyDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.familiesService.remove(+id);
+  @ApiOperation({ summary: 'عرض جميع العوائل التي ينتمي إليها المستخدم' })
+  findAll(@Req() req) {
+    const userId = req.user.userId;
+    return this.familiesService.findAllForUser(userId);
   }
 }
