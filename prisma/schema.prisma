@@ -1,0 +1,302 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" 
+
+}
+
+// ================= Enums =================
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  CHILD
+}
+
+enum AlertType {
+  LOW_STOCK
+  EXPIRY
+  BOTH
+}
+
+enum InventoryAction {
+  ADD
+  REDUCE
+  EDIT
+  DELETE
+}
+
+enum BillType {
+  WATER
+  ELECTRICITY
+  INTERNET
+  RENT
+  PURCHASE
+  OTHER
+}
+
+enum RecurrenceType {
+  MONTHLY
+  YEARLY
+  NONE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PURCHASED
+}
+
+enum NotificationType {
+  LOW_STOCK
+  EXPIRY
+  REQUEST
+  BILL_DUE
+}
+
+// ================= Models =================
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String?
+  googleId      String?   @unique
+  avatar        String?
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // العلاقات
+  ownedFamilies Family[]       @relation("FamilyOwner")
+  memberships   FamilyMember[]
+  categories    Category[]
+  items         Item[]
+  inventoryLogs InventoryLog[]
+  bills         Bill[]
+  requestsMade  Request[]      @relation("RequestedBy")
+  requestsHandled Request[]    @relation("HandledBy")
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+
+  @@map("users")
+}
+
+model Family {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // العلاقات
+  owner         User           @relation("FamilyOwner", fields: [ownerId], references: [id])
+  members       FamilyMember[]
+  categories    Category[]
+  items         Item[]
+  bills         Bill[]
+  requests      Request[]
+  subscriptions Subscription[]
+  activityLogs  ActivityLog[]
+
+  @@map("families")
+}
+
+model FamilyMember {
+  id        String   @id @default(uuid())
+  familyId  String
+  userId    String
+  role      Role     @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  // العلاقات
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId]) // يمنع تكرار نفس المستخدم في نفس العائلة
+  @@map("family_members")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  familyId    String
+  name        String
+  description String?
+  image       String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // العلاقات
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+  items     Item[]
+
+  @@map("categories")
+}
+
+model Item {
+  id               String     @id @default(uuid())
+  familyId         String
+  categoryId       String
+  name             String
+  brand            String?
+  quantity         Float      @default(0)
+  unit             String
+  minQuantityAlert Float?
+  expiryDate       DateTime?
+  alertType        AlertType?
+  image            String?
+  details          String?
+  createdById      String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?  // Soft Delete
+
+  // العلاقات
+  family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category      Category       @relation(fields: [categoryId], references: [id])
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  inventoryLogs InventoryLog[]
+
+  @@map("items")
+}
+
+model InventoryLog {
+  id             String          @id @default(uuid())
+  itemId         String
+  action         InventoryAction
+  quantityBefore Float
+  quantityAfter  Float
+  performedById  String
+  createdAt      DateTime        @default(now())
+
+  // العلاقات
+  item        Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  performedBy User @relation(fields: [performedById], references: [id])
+
+  @@map("inventory_logs")
+}
+
+model Bill {
+  id             String         @id @default(uuid())
+  familyId       String
+  type           BillType
+  title          String
+  amount         Float
+  currency       String
+  dueDate        DateTime
+  isRecurring    Boolean        @default(false)
+  recurrenceType RecurrenceType @default(NONE)
+  paid           Boolean        @default(false)
+  paidAt         DateTime?
+  createdById    String
+  createdAt      DateTime       @default(now())
+
+  // العلاقات
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@map("bills")
+}
+
+model Request {
+  id          String        @id @default(uuid())
+  familyId    String
+  requestedById String
+  itemName    String
+  quantity    Float?
+  status      RequestStatus @default(PENDING)
+  note        String?
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  // العلاقات
+  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  requestedBy User   @relation("RequestedBy", fields: [requestedById], references: [id])
+  handledBy   User?  @relation("HandledBy", fields: [handledById], references: [id])
+
+  @@map("requests")
+}
+
+model Plan {
+  id            String   @id @default(uuid())
+  name          String
+  maxCategories Int
+  maxItems      Int
+  adsEnabled    Boolean  @default(true)
+  priceMonthly  Float    @default(0)
+  priceYearly   Float    @default(0)
+  createdAt     DateTime @default(now())
+
+  // العلاقات
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  familyId  String
+  planId    String
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // العلاقات
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // العلاقات
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  familyId   String
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  // العلاقات
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model GlobalProduct {
+  id           String   @id @default(uuid())
+  name         String
+  brand        String?
+  defaultUnit  String
+  image        String?
+  categoryName String
+  createdAt    DateTime @default(now())
+
+  @@map("global_products")
+}
