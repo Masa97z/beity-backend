@@ -1,34 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { CreateItemDto } from './dto/create-item.dto';
-import { UpdateItemDto } from './dto/update-item.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiParam } from '@nestjs/swagger';
 
+@ApiTags('العناصر والمقاضي (Items)')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('items')
 export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
   @Post()
-  create(@Body() createItemDto: CreateItemDto) {
-    return this.itemsService.create(createItemDto);
+  @ApiOperation({ summary: 'إضافة عنصر جديد للمخزون' })
+  create(@Req() req, @Body() createItemDto: CreateItemDto) {
+    const userId = req.user.userId;
+    return this.itemsService.create(userId, createItemDto);
   }
 
-  @Get()
-  findAll() {
-    return this.itemsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.itemsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateItemDto: UpdateItemDto) {
-    return this.itemsService.update(+id, updateItemDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.itemsService.remove(+id);
+  @Get('family/:familyId')
+  @ApiOperation({ summary: 'عرض جميع عناصر عائلة محددة' })
+  @ApiParam({ name: 'familyId', description: 'معرف العائلة' })
+  findAllByFamily(@Req() req, @Param('familyId') familyId: string) {
+    const userId = req.user.userId;
+    return this.itemsService.findAllByFamily(userId, familyId);
   }
 }
