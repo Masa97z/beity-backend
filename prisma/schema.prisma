@@ -1,11 +1,10 @@
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" 
-
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ================= Enums =================
@@ -62,27 +61,27 @@ enum NotificationType {
 // ================= Models =================
 
 model User {
-  id            String    @id @default(uuid())
-  name          String
-  email         String    @unique
-  passwordHash  String?
-  googleId      String?   @unique
-  avatar        String?
-  lastLogin     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String?
+  googleId     String?   @unique
+  avatar       String?
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // العلاقات
-  ownedFamilies Family[]       @relation("FamilyOwner")
-  memberships   FamilyMember[]
-  categories    Category[]
-  items         Item[]
-  inventoryLogs InventoryLog[]
-  bills         Bill[]
-  requestsMade  Request[]      @relation("RequestedBy")
-  requestsHandled Request[]    @relation("HandledBy")
-  notifications Notification[]
-  activityLogs  ActivityLog[]
+  ownedFamilies   Family[]       @relation("FamilyOwner")
+  memberships     FamilyMember[]
+  categories      Category[]
+  items           Item[]
+  inventoryLogs   InventoryLog[]
+  bills           Bill[]
+  requestsMade    Request[]      @relation("RequestedBy")
+  requestsHandled Request[]      @relation("HandledBy")
+  notifications   Notification[]
+  activityLogs    ActivityLog[]
 
   @@map("users")
 }
@@ -109,11 +108,11 @@ model Family {
 }
 
 model FamilyMember {
-  id        String   @id @default(uuid())
-  familyId  String
-  userId    String
-  role      Role     @default(MEMBER)
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(uuid())
+  familyId String
+  userId   String
+  role     Role     @default(MEMBER)
+  joinedAt DateTime @default(now())
 
   // العلاقات
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -157,7 +156,7 @@ model Item {
   createdById      String
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
-  deletedAt        DateTime?  // Soft Delete
+  deletedAt        DateTime? // Soft Delete
 
   // العلاقات
   family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -207,16 +206,16 @@ model Bill {
 }
 
 model Request {
-  id          String        @id @default(uuid())
-  familyId    String
+  id            String        @id @default(uuid())
+  familyId      String
   requestedById String
-  itemName    String
-  quantity    Float?
-  status      RequestStatus @default(PENDING)
-  note        String?
-  handledById String?
-  handledAt   DateTime?
-  createdAt   DateTime      @default(now())
+  itemName      String
+  quantity      Float?
+  status        RequestStatus @default(PENDING)
+  note          String?
+  handledById   String?
+  handledAt     DateTime?
+  createdAt     DateTime      @default(now())
 
   // العلاقات
   family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -243,13 +242,13 @@ model Plan {
 }
 
 model Subscription {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   familyId  String
   planId    String
-  startDate DateTime @default(now())
+  startDate DateTime  @default(now())
   endDate   DateTime?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
 
   // العلاقات
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
